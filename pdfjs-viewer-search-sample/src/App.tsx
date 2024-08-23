@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 // import Canvas from "./canvas.tsx";
 import './App.css'
 import { QuestionAnswer } from './questions';
@@ -7,7 +7,8 @@ import { QuestionAnswer } from './questions';
 
 function App() {
   const [questionPage, setQuestionPage] = useState(1);
-  const [filePage, setFilePage] = useState(0);
+  const [filePage, setFilePage] = useState(1);
+  const [fileName, setFileName] = useState("compressed.tracemonkey-pldi-09.pdf");
   // const [retry, setRetry] = useState(0);
   // const [textLayer, setTextLayer] = useState<HTMLDivElement | undefined>(undefined);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -48,7 +49,8 @@ function App() {
     if (page === qA.length) { return; }
     else { setQuestionPage(page + 1); }
   }
-  const url = `./pdfjs/web/viewer.html?file=.%2Fcompressed.tracemonkey-pldi-09.pdf#page=${filePage}&zoom=page-width`;
+
+  const url = `./pdfjs/web/viewer.html?file=.%2F${fileName}#page=${filePage}&zoom=page-width`;
   return (
     <div id="app">
       <div id="sidebar">
@@ -57,7 +59,10 @@ function App() {
         Page {questionPage}
         &nbsp;
         <button onClick={() => nextQuestion(questionPage)}>Next</button>
-        <QuestionAnswer qA={qA[questionPage - 1]} setFilePage={setFilePage} iframeRef={iframeRef} />
+        <QuestionAnswer qA={qA[questionPage - 1]} 
+                        setFilePage={setFilePage} 
+                        setFileName={setFileName} 
+                        iframeRef={iframeRef} />
       </div>
       <div id="viewer">
         <iframe ref={iframeRef} src={url} id="iframe" />
