@@ -1,17 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-// import Canvas from "./canvas.tsx";
+import { useRef, useState } from 'react';
 import './App.css'
 import { QuestionAnswer } from './questions';
 
-// const searchString = "Each\ntree is associated with a loop header and type map, so there may be\nseveral trees for a given loop header.\nClosing the loop. Trace";
-
 function App() {
-  const [questionPage, setQuestionPage] = useState(1);
-  const [filePage, setFilePage] = useState(0);
-  // const [retry, setRetry] = useState(0);
-  // const [textLayer, setTextLayer] = useState<HTMLDivElement | undefined>(undefined);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
   const qA = [
     {
       question: "Dynamic languages question",
@@ -39,16 +30,24 @@ function App() {
     }
   ]
 
+  const [questionPage, setQuestionPage] = useState(1);
+  const [filePage, setFilePage] = useState(1);
+  const [fileName, setFileName] = useState(qA[0].references[0].fileName);
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
   const previousQuestion = (page: number) => {
     if (page === 1) { return; }
     else { setQuestionPage(page - 1); }
-  }
+  };
 
   const nextQuestion = (page: number) => {
     if (page === qA.length) { return; }
     else { setQuestionPage(page + 1); }
-  }
-  const url = `./pdfjs/web/viewer.html?file=.%2Fcompressed.tracemonkey-pldi-09.pdf#page=${filePage}&zoom=page-width`;
+  };
+
+  const url = `./pdfjs/web/viewer.html?file=.%2F${fileName}#page=${filePage}&zoom=page-width`;
+  console.log(questionPage - 1);
   return (
     <div id="app">
       <div id="sidebar">

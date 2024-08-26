@@ -1,87 +1,122 @@
-import { docIntResponse } from "./interfaces";
+import { useState } from 'react';
+import { docIntResponse, BoundingRegion } from "./interfaces";
 import di from "../../di.json"
+import { flushSync } from 'react-dom';
 
 const response = di as docIntResponse;
 
-const draw = (context: CanvasRenderingContext2D, scale: number = 1, polygons: number[]) => {
-    const multiplier = 72 * (window.devicePixelRatio || 1) * scale;
-    context.fillStyle = 'rgba(252, 207, 8, 0.3)';
-    context.strokeStyle = '#fccf08';
-    context.lineWidth = 1;
-    context.beginPath();
-    context.moveTo(polygons[0] * multiplier, polygons[1] * multiplier);
-    for (let i = 2; i < polygons.length; i += 2) {
-        context.lineTo(polygons[i] * multiplier, polygons[i + 1] * multiplier);
-    }
-    context.closePath();
-    context.fill();
-    context.stroke();
-};
+const Reference = (props) => {
+    const { reference, setFilePage, iframeRef } = props;
 
-const preDraw = (iframeRef: React.RefObject<HTMLIFrameElement>, pageNumber: number, polygons: number[]) => {
-    const elements = iframeRef.current?.contentWindow?.document.querySelectorAll("div.canvasWrapper > canvas") as NodeList;
+    console.log("rerendering reference")
 
-    let element;
-    if (elements.length === 1) element = elements[0] as HTMLCanvasElement;
-    else element = elements[pageNumber - 1] as HTMLCanvasElement;
-
-    if (element) {
-        const highlightContext = element?.getContext('2d');
-        const scale = parseFloat(iframeRef.current?.contentWindow?.getComputedStyle(element).getPropertyValue('--scale-factor') || '1');
-        if (highlightContext) {
-            draw(highlightContext, scale, polygons);
-        }
-    }
-}
-const findReferences = ({ text, fileName }: { text: string, fileName: string }, setFilePage: (filePage: number) => void, iframeRef: React.RefObject<HTMLIFrameElement>) => {
-    // when you click on a specific citation
-    // this runs to find the relevant document, page, and bounding box data
-
-    // fetch DI response from a db
-    // actually for now, we just import the di.json file
+    // eventually this will be a DB call
+    // for now just open the doc int response object
     const paragraphs = response.analyzeResult.paragraphs;
 
     // loop through paragraphs object
     // get relevant paragraph with matching text
-    let boundingRegions;
+    let foundBoundingRegions = [] as BoundingRegion[];
     paragraphs.forEach((paragraph) => {
-        if (paragraph.content == text) {
-            boundingRegions = paragraph.boundingRegions;
+        if (paragraph.content == reference.text) {
+            foundBoundingRegions = paragraph.boundingRegions;
         }
-    })
+    });
 
-    // things we need:
-    // page number for the iframe
-    // bounding box
-    if (boundingRegions) {
-        const { pageNumber, polygon } = boundingRegions[0];
-        setFilePage(pageNumber);
-        preDraw(iframeRef, pageNumber, polygon);
-    }
-}
+    const [shown, setShown] = useState(false);
+    const [boundingRegions, setBoundingRegions] = useState(foundBoundingRegions);
 
-const References = (props) => {
-    const { references, setFilePage, iframeRef } = props;
-    const returnArray = [];
-    for (let index = 0; index < references.length; index++) {
-        const reference = references[index];
-        returnArray.push(
-            <div key={"reference" + index}>
-                <p id="referenceContext">{reference.text}</p>
-                <button onClick={() => findReferences(reference, setFilePage, iframeRef)}>Display Document</button>
-            </div>
-        )
+    const draw = (context: CanvasRenderingContext2D, scale: number = 1, polygon: number[]) => {
+        const multiplier = 72 * (window.devicePixelRatio || 1) * scale;
+        context.fillStyle = 'rgba(252, 207, 8, 0.3)';
+        context.strokeStyle = '#fccf08';
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(polygon[0] * multiplier, polygon[1] * multiplier);
+        for (let i = 2; i < polygon.length; i += 2) {
+            context.lineTo(polygon[i] * multiplier, polygon[i + 1] * multiplier);
+        }
+        context.closePath();
+        context.fill();
+        context.stroke();
+    };
+
+    const preDraw = (pageNumber: number, polygon: number[]) => {
+        const pages = iframeRef.current?.contentWindow?.document.getElementsByClassName("page") as HTMLCollection;
+    
+        let canvas;
+        for (let index = 0; index < pages.length; index++) {
+            let page = pages[index] as HTMLElement;
+            let canvasPageNumber = Number(page.dataset.pageNumber);
+            if (canvasPageNumber == pageNumber) canvas = page.getElementsByTagName("canvas")[0] as HTMLCanvasElement;
+        }
+    
+        if (canvas) {
+            const highlightContext = canvas?.getContext('2d');
+            const scale = parseFloat(iframeRef.current?.contentWindow?.getComputedStyle(canvas).getPropertyValue('--scale-factor') || '1');
+            if (highlightContext) draw(highlightContext, scale, polygon);
+        }
+    };
+
+    const showReference = (setFilePage: (arg0: number) => void ) => {
+        let firstPage = 0;
+        if (boundingRegions) { firstPage = boundingRegions[0].pageNumber; }
+        
+        let element = iframeRef.current?.contentWindow?.document.getElementById("pageNumber");
+        let actualPageValue = element.value;
+        console.log("actual page value: ",actualPageValue);
+
+        if (actualPageValue != firstPage)
+        {
+            setFilePage(actualPageValue);
+        }
+
+        flushSync(() => {
+            setFilePage(firstPage);
+        });
+
+        element = iframeRef.current?.contentWindow?.document.getElementById("pageNumber");
+        actualPageValue = element.value;
+        console.log("actual page value after setFilepage: ",actualPageValue);
+
+        console.log(boundingRegions);
+
+        if (!shown) {
+            for (let index = 0; index < boundingRegions.length; index++) {
+                const { pageNumber, polygon } = boundingRegions[index];
+                preDraw(pageNumber, polygon);
+            }
+            setShown(true);
+        }
     }
-    return returnArray;
-}
-export function QuestionAnswer(props) {
-    const { qA, ...otherProps } = props;
+
     return (
-        <div id="question-container">
-            <div><div id="question">Question: </div><div id="question-text">{qA.question}</div></div>
-            <label id="answer" htmlFor="answer">Answer: </label><input name="answer" placeholder={qA.answer} />
-            <p id="referenceTitle">Reference contexts</p>
-            <References references={qA.references} {...otherProps} />
+        <div key={Math.random()}>
+            <p className="referenceContext">{reference.text}</p>
+            <button onClick={() => showReference(setFilePage)}>show reference</button>
         </div>
     )
+}
+
+export function QuestionAnswer(props) {
+    const { qA, ...otherProps } = props;
+
+    let returnArray = [];
+    returnArray.push(
+        <div key="questionDiv" id="questionDiv"><p id="question">Question: </p><p id="question-text">{qA.question}</p></div>
+    );
+    returnArray.push(
+        <label key="answer" id="answer">Answer: <input placeholder={qA.answer} /></label>
+    );
+    returnArray.push(
+        <p key="referenceTitle" id="referenceTitle">Reference contexts</p>
+    );
+
+    for (let index = 0; index < qA.references.length; index++) {
+        returnArray.push(
+            <Reference key={Math.random()} reference={qA.references[index]} {...otherProps}/>
+        )
+    }
+
+    return returnArray;
 }
