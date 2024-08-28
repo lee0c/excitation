@@ -8,8 +8,6 @@ const response = di as docIntResponse;
 const Reference = (props) => {
     const { reference, setFilePage, iframeRef } = props;
 
-    console.log("rerendering reference")
-
     // eventually this will be a DB call
     // for now just open the doc int response object
     const paragraphs = response.analyzeResult.paragraphs;
@@ -27,6 +25,7 @@ const Reference = (props) => {
     const [boundingRegions, setBoundingRegions] = useState(foundBoundingRegions);
 
     const draw = (context: CanvasRenderingContext2D, scale: number = 1, polygon: number[]) => {
+        console.log("drawing...");
         const multiplier = 72 * (window.devicePixelRatio || 1) * scale;
         context.fillStyle = 'rgba(252, 207, 8, 0.3)';
         context.strokeStyle = '#fccf08';
@@ -39,11 +38,13 @@ const Reference = (props) => {
         context.closePath();
         context.fill();
         context.stroke();
+        console.log("finished drawing!");
     };
 
     const preDraw = (pageNumber: number, polygon: number[]) => {
         const pages = iframeRef.current?.contentWindow?.document.getElementsByClassName("page") as HTMLCollection;
-    
+
+        console.log("looking for canvas...");
         let canvas;
         for (let index = 0; index < pages.length; index++) {
             let page = pages[index] as HTMLElement;
@@ -52,6 +53,7 @@ const Reference = (props) => {
         }
     
         if (canvas) {
+            console.log("canvas found!");
             const highlightContext = canvas?.getContext('2d');
             const scale = parseFloat(iframeRef.current?.contentWindow?.getComputedStyle(canvas).getPropertyValue('--scale-factor') || '1');
             if (highlightContext) draw(highlightContext, scale, polygon);
@@ -64,12 +66,10 @@ const Reference = (props) => {
         
         let element = iframeRef.current?.contentWindow?.document.getElementById("pageNumber");
         let actualPageValue = element.value;
-        console.log("actual page value: ",actualPageValue);
-
-        if (actualPageValue != firstPage)
-        {
-            setFilePage(actualPageValue);
-        }
+        
+        flushSync(() => {
+            if (actualPageValue != firstPage) setFilePage(actualPageValue);
+        });
 
         flushSync(() => {
             setFilePage(firstPage);
@@ -77,9 +77,6 @@ const Reference = (props) => {
 
         element = iframeRef.current?.contentWindow?.document.getElementById("pageNumber");
         actualPageValue = element.value;
-        console.log("actual page value after setFilepage: ",actualPageValue);
-
-        console.log(boundingRegions);
 
         if (!shown) {
             for (let index = 0; index < boundingRegions.length; index++) {

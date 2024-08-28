@@ -47,7 +47,6 @@ function App() {
   };
 
   const url = `./pdfjs/web/viewer.html?file=.%2F${fileName}#page=${filePage}&zoom=page-width`;
-  console.log(questionPage - 1);
   return (
     <div id="app">
       <div id="sidebar">
